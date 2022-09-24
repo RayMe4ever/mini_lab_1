@@ -7,6 +7,7 @@ import numpy as np
 from functools import partial
 from tkinter import *
 from tkinter.filedialog import asksaveasfile
+from tkinter.filedialog import askopenfile
 
 from matplotlib import pyplot as plt
 
@@ -37,6 +38,26 @@ class Entries:
         self.parent_window.add_button('plot', 'Plot', 'plot', hot_key='<Return>')
         self.entries_list.append(new_entry)
 
+    def __delete_entry(self, entry, callback):
+        self.entries_list.remove(entry)
+        entry.forget()
+        callback()
+
+
+    def delete_entry(self):
+        entry = self.parent_window.focus_get()
+        if entry not in self.entries_list:
+            return
+
+        if len(entry.get()) > 0:
+            mw = ModalWindow(self.parent_window, title='СТРОКА НЕ ПУСТАЯ!', labeltext='Уверен, что хочешь удалить?')
+            submit_button = Button(master=mw.top, text='Да,да, я принимаю риски', command=(lambda: self.__delete_entry(entry, mw.cancel)))
+            cancel_button = Button(master=mw.top, text='А, чего? Кого?', command=mw.cancel)
+            mw.add_button(submit_button)
+            mw.add_button(cancel_button)
+        else:
+            self.entries_list.remove(entry)
+            entry.forget()
 
 # class for plotting (класс для построения графиков)
 class Plotter:
@@ -85,6 +106,14 @@ class Commands:
             if file_out is not None:
                 json.dump(tmp_dict, file_out)
             return self
+
+        def load_state(self):
+            file_in = askopenfile(defaultextension=".json")
+            if file_in is not None:
+                tmp_dict = json.load(file_in)
+                self.list_of_function = tmp_dict['list_of_function']
+            return self
+
 
         def reset_state(self):
             self.list_of_function = []
@@ -152,6 +181,10 @@ class Commands:
         self.__forget_canvas()
         self.__forget_navigation()
         self.parent_window.entries.add_entry()
+
+    def delete_entry(self, *args, **kwargs):
+        self.parent_window.entries.delete_entry()
+
 
     def save_as(self):
         self._state.save_state()
@@ -233,7 +266,6 @@ class App(Tk):
         file_menu.add_command(label="Save as...", command=self.commands.get_command_by_name('save_as'))
         menu.add_cascade(label="File", menu=file_menu)
 
-
 if __name__ == "__main__":
     # init buttons (создаем кнопки)
     buttons_main = Buttons()
@@ -248,10 +280,12 @@ if __name__ == "__main__":
     commands_main.add_command('plot', commands_main.plot)
     commands_main.add_command('add_func', commands_main.add_func)
     commands_main.add_command('save_as', commands_main.save_as)
+    commands_main.add_command('delete_active_entry', commands_main.delete_entry)
     # init app (создаем экземпляр приложения)
     app = App(buttons_main, plotter_main, commands_main, entries_main)
     # init add func button (добавляем кнопку добавления новой функции)
     app.add_button('add_func', 'Добавить функцию', 'add_func', hot_key='<Control-a>')
+    app.add_button('delete_active_entry', 'Удалить поле', 'delete_active_entry', hot_key='<Control-d>')
     # init first entry (создаем первое поле ввода)
     entries_main.add_entry()
     app.create_menu()
